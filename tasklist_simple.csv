@@ -5,3 +5,4 @@ touch file4,file4
 touch file5,file5
 touch file6,file6
 touch file7,file7
+echo hello,file8

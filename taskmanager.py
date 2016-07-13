@@ -27,7 +27,7 @@ import datetime
 
 TIMER_INTERVAL = 1000
 
-TIMEFORMAT = "%d_%m %Hh%Mm%S"
+TIMEFORMAT = "%d %b %H:%M:%S"
 
 class Main(wx.Frame):
 
@@ -281,15 +281,29 @@ class Main(wx.Frame):
             # If the i-th process slot is currently idle
             if self.processes[i]!=None:
                 ret = self.processes[i]["process"].poll()
-                if ret!=None: # None means it's still working
+
+                if ret==None:
+                    # If it's an on-going process, see if we can read some of its standard output
+                    line = None
+                    while line!=None:
+                        line = proc.stdout.readline()
+                        if line != '':
+                            self.processes[i]["log"].write(line)
+
+                    # See if we have some more output
+                    self.processes[i]["log"].flush()
+                    
+                else: # None means it's still working
 
                     # If it's completed...
-                    self.processes_completed.append(self.processes[i])
                     if ret==0:
                         self.processes[i]["task"]["status"]="completed"
                     if ret==-1:
                         self.processes[i]["task"]["status"]="failed"
                     self.processes[i]["task"]["finished"]=datetime.datetime.now()
+                    self.processes[i]["log"].write('Completed: "%s"\n\n'%(self.processes[i]["task"]["finished"].strftime(TIMEFORMAT)))
+                    self.processes[i]["log"].close()
+                    self.processes_completed.append(self.processes[i])
                     self.processes[i]=None
 
 
@@ -303,10 +317,17 @@ class Main(wx.Frame):
                         cmd = task["command"].split(" ")
                         print("Launching '%s'"%task["command"])
                         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+                        
+                        fnamesafe = task["command"].replace(" ","")
+                        fnamesafe = fnamesafe.replace("/","")
+                        f = open('log%s.txt'%fnamesafe,'w')
+                        f.write('Log for running "%s"\n'%fnamesafe)
+                        task["started"]=datetime.datetime.now()
+                        f.write('Started running: "%s"\n\n'%task["started"].strftime(TIMEFORMAT))
 
                         self.processes[i]={"task"    :task,
-                                           "process" :p}
-                        task["started"]=datetime.datetime.now()
+                                           "process" :p,
+                                           "log"     :f}
                         task["status"]="running"
                         assigned = True # we've assigned this process slot, let's go on
 
