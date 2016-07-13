@@ -22,7 +22,12 @@ import struct
 import os
 
 import subprocess
+import time
+import datetime
 
+TIMER_INTERVAL = 1000
+
+TIMEFORMAT = "%d_%m %Hh%Mm%S"
 
 class Main(wx.Frame):
 
@@ -32,11 +37,10 @@ class Main(wx.Frame):
         super(Main, self).__init__(parent, title=title, 
                                    size=(900, 700))
 
-        self.current_trial = None
-        self.participant = ""
+        # This is the timer that keeps updating the processes (checking when processes have completed)
+        self.timer = wx.Timer(self)
         
         self.dialog = wx.FileDialog(None, 'Open', wildcard="*", style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST)
-        self.ready_for_writing = False
 
         self.tasks = []
 
@@ -46,6 +50,8 @@ class Main(wx.Frame):
         self.running = False
         self.processes = []
         self.processes_completed = []
+        
+
 
 
 
@@ -149,8 +155,13 @@ class Main(wx.Frame):
             if task["status"]=="running":
                 self.reportt.SetDefaultStyle(wx.TextAttr((200,200,0)))
 
-            self.reportt.AppendText("[%s]\n"%task["status"])
+            self.reportt.AppendText("[%s]"%task["status"])
             self.reportt.SetDefaultStyle(wx.TextAttr(wx.BLACK))
+            if "started" in task.keys():                
+                self.reportt.AppendText(" started %s "%task["started"].strftime(TIMEFORMAT))
+            if "finished" in task.keys():
+                self.reportt.AppendText(" finished %s "%task["finished"].strftime(TIMEFORMAT))
+            self.reportt.AppendText("\n")
 
         return
 
@@ -254,6 +265,10 @@ class Main(wx.Frame):
         panel.SetSizer(vbox)
         self.update_enabled()
 
+        self.Bind(wx.EVT_TIMER, self.on_timer, self.timer)
+
+
+
 
 
 
@@ -270,7 +285,11 @@ class Main(wx.Frame):
 
                     # If it's completed...
                     self.processes_completed.append(self.processes[i])
-                    self.processes[i]["task"]["status"]="completed"
+                    if ret==0:
+                        self.processes[i]["task"]["status"]="completed"
+                    if ret==-1:
+                        self.processes[i]["task"]["status"]="failed"
+                    self.processes[i]["task"]["finished"]=datetime.datetime.now()
                     self.processes[i]=None
 
 
@@ -287,6 +306,7 @@ class Main(wx.Frame):
 
                         self.processes[i]={"task"    :task,
                                            "process" :p}
+                        task["started"]=datetime.datetime.now()
                         task["status"]="running"
                         assigned = True # we've assigned this process slot, let's go on
 
@@ -303,6 +323,10 @@ class Main(wx.Frame):
         if not still_running:
             print("All processes completed.")
             self.running = False
+            self.timer.Stop()
+
+
+
 
 
 
@@ -337,6 +361,8 @@ class Main(wx.Frame):
         self.processes = [ None for _ in range(self.n_processes) ]
         self.processes_completed = []
 
+        self.timer.Start(TIMER_INTERVAL)
+
 
 
     def poke(self,e):
@@ -361,6 +387,7 @@ class Main(wx.Frame):
                 proc["task"]["status"]="killed"
         self.running = False
         self.update_status()
+        self.timer.Stop()
 
 
 
@@ -373,6 +400,16 @@ class Main(wx.Frame):
 
     def OnCloseWindow(self, e):
         self.Close()
+
+
+    def on_timer(self,e):
+        if not self.running:
+            self.timer.Stop()
+
+        else:
+            self.keep_active(e)
+        self.update_status()
+
 
 
 
