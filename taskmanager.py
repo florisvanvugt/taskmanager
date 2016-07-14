@@ -163,6 +163,12 @@ class Main(wx.Frame):
                 self.reportt.AppendText(" finished %s "%task["finished"].strftime(TIMEFORMAT))
             self.reportt.AppendText("\n")
 
+        # Now get the whole contents and save them to a log file.
+        conts = self.reportt.GetValue()
+        f = open('log.txt','w')
+        f.write(conts)
+        f.close()
+
         return
 
 
@@ -284,11 +290,19 @@ class Main(wx.Frame):
 
                 if ret==None:
                     # If it's an on-going process, see if we can read some of its standard output
-                    line = None
-                    while line!=None:
-                        line = proc.stdout.readline()
+                    line = True
+                    while line:
+                        #line = self.processes[i]["process"].stdout.readline()
+                        line = ""
                         if line != '':
                             self.processes[i]["log"].write(line)
+                    line = True
+                    while line:
+                        #line = self.processes[i]["process"].stderr.readline()
+                        line = ""
+                        if line != '':
+                            self.processes[i]["log"].write("ERROR: %s"%line)
+
 
                     # See if we have some more output
                     self.processes[i]["log"].flush()
@@ -316,7 +330,7 @@ class Main(wx.Frame):
 
                         cmd = task["command"].split(" ")
                         print("Launching '%s'"%task["command"])
-                        p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+                        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                         
                         fnamesafe = task["command"].replace(" ","")
                         fnamesafe = fnamesafe.replace("/","")
@@ -345,6 +359,7 @@ class Main(wx.Frame):
             print("All processes completed.")
             self.running = False
             self.timer.Stop()
+            self.update_status()
 
 
 
@@ -438,7 +453,7 @@ class Main(wx.Frame):
 if __name__ == '__main__':
   
     app = wx.App()
-    n = Main(None, title='Trajectory Replay Generator')
+    n = Main(None, title='Parallel Script Running Manager')
     n.__close_callback = lambda: True
     app.MainLoop()
 
