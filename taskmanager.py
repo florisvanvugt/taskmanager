@@ -25,9 +25,38 @@ import subprocess
 import time
 import datetime
 
+from threading  import Thread
+import sys
+
+try:
+    from Queue import Queue, Empty
+except ImportError:
+    from queue import Queue, Empty  # python 3.x
+
+ON_POSIX = 'posix' in sys.builtin_module_names
+
 TIMER_INTERVAL = 1000
 
 TIMEFORMAT = "%d %b %H:%M:%S"
+
+
+
+def enqueue_output(out, err, queue):
+    """ 
+    For reading queued output; source
+    http://stackoverflow.com/questions/375427/non-blocking-read-on-a-subprocess-pipe-in-python
+    """
+    for stream in [out,err]:
+        for line in iter(stream.readline, b''):
+            queue.put(line)
+        stream.close()
+
+
+
+
+
+
+
 
 class Main(wx.Frame):
 
@@ -46,6 +75,9 @@ class Main(wx.Frame):
 
         self.InitUI()
         self.Show()
+
+        self.n_active = 0
+        self.n_processes = None
 
         self.running = False
         self.processes = []
@@ -136,7 +168,7 @@ class Main(wx.Frame):
         self.reportt.SetDefaultStyle(wx.TextAttr(wx.BLACK))
         self.reportt.SetValue("")
         if self.running:
-            self.reportt.AppendText("--- RUNNING ---\n\n")
+            self.reportt.AppendText("--- RUNNING (%i/%i active threads) ---\n\n"%(self.n_active,self.n_processes))
         else:
             self.reportt.AppendText("--- NOT RUNNING ---\n\n")
 
@@ -214,6 +246,7 @@ class Main(wx.Frame):
         hbox1.Add(st1, flag=wx.RIGHT, border=8)
         self.parproc = wx.TextCtrl(panel)
         self.parproc.SetValue("3")
+        self.parproc.Bind(wx.EVT_TEXT,self.nparprocchanged)
         hbox1.Add(self.parproc)
         vbox.Add(hbox1)
 
@@ -278,95 +311,114 @@ class Main(wx.Frame):
 
 
 
+    def read_process_outputs(self,e):
+        """
+        This goes through all active processes and
+        sees if they have output waiting, if so writes
+        it to the corresponding log files.
+        """
+
+        for proc in self.processes:
+
+            if proc!=None:
+
+                # read line without blocking
+                q = proc["queue"]
+                keep_reading = True
+                while keep_reading:
+                    try:  
+                        line = q.get_nowait() # or q.get(timeout=.1)
+                    except Empty:
+                        keep_reading = False
+                    else: # got line
+                        proc["log"].write(line)
+                        # See if we have some more output
+                        proc["log"].flush()
+
+
+                # If the task is no longer running
+                if proc["task"]["status"]!="running":
+                    proc["log"].close()
+
+
+
     def keep_active(self,e):
         """ 
         This checks if we want to insert a new process (if a slot has opened)
         and then does so.
         """
-        for i in range(self.n_processes):
-            # If the i-th process slot is currently idle
-            if self.processes[i]!=None:
-                ret = self.processes[i]["process"].poll()
+        self.get_n_processes()
+        self.read_process_outputs(e)
+
+        n_active = 0  # how many processes are currently active
+        for proc in self.processes:
+
+            if proc!=None and proc["task"]["status"]=="running":
+                ret = proc["process"].poll()
 
                 if ret==None:
-                    # If it's an on-going process, see if we can read some of its standard output
-                    line = True
-                    while line:
-                        #line = self.processes[i]["process"].stdout.readline()
-                        line = ""
-                        if line != '':
-                            self.processes[i]["log"].write(line)
-                    line = True
-                    while line:
-                        #line = self.processes[i]["process"].stderr.readline()
-                        line = ""
-                        if line != '':
-                            self.processes[i]["log"].write("ERROR: %s"%line)
+                    # This means it's still active, still running
+                    n_active+=1
 
-
-                    # See if we have some more output
-                    self.processes[i]["log"].flush()
-                    
-                else: # None means it's still working
-
-                    # If it's completed...
+                else:
+                    # If the process is completed...
                     if ret==0:
-                        self.processes[i]["task"]["status"]="completed"
+                        proc["task"]["status"]="completed"
                     if ret==-1:
-                        self.processes[i]["task"]["status"]="failed"
-                    self.processes[i]["task"]["finished"]=datetime.datetime.now()
-                    self.processes[i]["log"].write('Completed: "%s"\n\n'%(self.processes[i]["task"]["finished"].strftime(TIMEFORMAT)))
-                    self.processes[i]["log"].close()
-                    self.processes_completed.append(self.processes[i])
-                    self.processes[i]=None
+                        proc["task"]["status"]="failed"
+
+                    proc["task"]["finished"]=datetime.datetime.now()
+                    proc["log"].write('\nCompleted: %s\n'%(proc["task"]["finished"].strftime(TIMEFORMAT)))
+                    proc["log"].flush()
 
 
-            if self.processes[i]==None:
+        if n_active<self.n_processes: # If we have less active processes than the maximum, we can 
 
-                # Find if we have a task that needs to be assigned to a processes
-                assigned = False
-                for task in self.tasks:
-                    if (not assigned) and task["status"]=="to do":
+            # Find if we have a task that needs to be assigned to a processes
+            newlaunched = False
+            for task in self.tasks:
+                if task["status"]=="to do":
 
-                        cmd = task["command"].split(" ")
-                        print("Launching '%s'"%task["command"])
-                        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        
-                        fnamesafe = task["command"].replace(" ","")
-                        fnamesafe = fnamesafe.replace("/","")
-                        f = open('log%s.txt'%fnamesafe,'w')
-                        f.write('Log for running "%s"\n'%fnamesafe)
-                        task["started"]=datetime.datetime.now()
-                        f.write('Started running: "%s"\n\n'%task["started"].strftime(TIMEFORMAT))
+                    cmd = task["command"].split(" ")
+                    print("Launching '%s'"%task["command"])
+                    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1, close_fds=ON_POSIX)
 
-                        self.processes[i]={"task"    :task,
-                                           "process" :p,
-                                           "log"     :f}
-                        task["status"]="running"
-                        assigned = True # we've assigned this process slot, let's go on
+                    # Create a queue+thread for reading out the STDOUT/STDERR pipelines associated with this process
+                    q = Queue()
+                    t = Thread(target=enqueue_output, 
+                               args=(p.stdout, p.stderr, q))
+                    t.daemon = True # thread dies with the program
+                    t.start()
 
-                if not assigned:
-                    # We haven't found another task to do, so no need to keep trying!
-                    pass
-                
+                    fnamesafe = task["command"].replace(" ","")
+                    fnamesafe = fnamesafe.replace("/","")
+                    f = open('log%s.txt'%fnamesafe,'w')
+                    f.write('Log for running "%s"\n'%fnamesafe)
+                    task["started"]=datetime.datetime.now()
+                    f.write('Started running: %s\n\n'%task["started"].strftime(TIMEFORMAT))
+                    f.flush()
 
-        still_running = False
-        for i in range(self.n_processes):
-            if self.processes[i]!=None:
-                still_running=True
+                    self.processes.append({"task"    :task,
+                                           "process" :p,  # The process variable
+                                           "queue"   :q,  # Queue is used for reading output from stderr and stdout
+                                           "thread"  :t,
+                                           "log"     :f})
+                    task["status"]="running"
+                    newlaunched = True
+                    break
 
-        if not still_running:
-            print("All processes completed.")
-            self.running = False
-            self.timer.Stop()
-            self.update_status()
+            if n_active==0 and not newlaunched:
+
+                print("All processes completed.")
+                self.running = False
+                self.timer.Stop()
+                self.update_status()
+
+        self.n_active=n_active
 
 
 
-
-
-
-    def startrun(self,e):
+    def get_n_processes(self):
         try:
             self.n_processes = int(self.parproc.GetValue().strip())
         except:
@@ -374,8 +426,16 @@ class Main(wx.Frame):
             print(msg)
             wx.MessageBox(msg,"Information",
                           wx.OK | wx.ICON_INFORMATION)
+
+
+
+
+
+    def startrun(self,e):
+
+        if self.n_processes == None:
             return
-            
+
 
         if self.running:
             msg = "Already running!"
@@ -390,12 +450,13 @@ class Main(wx.Frame):
             wx.MessageBox(msg,"Information",
                           wx.OK | wx.ICON_INFORMATION)
             return
-            
+
+
+        self.check_status(e)
         self.running = True
 
         # Let's go!
-        self.processes = [ None for _ in range(self.n_processes) ]
-        self.processes_completed = []
+        self.processes = [] # None for _ in range(self.n_processes) ]
 
         self.timer.Start(TIMER_INTERVAL)
 
@@ -436,6 +497,10 @@ class Main(wx.Frame):
 
     def OnCloseWindow(self, e):
         self.Close()
+
+
+    def nparprocchanged(self,e):
+        self.get_n_processes()
 
 
     def on_timer(self,e):
