@@ -1,4 +1,4 @@
 default: run
 
 run:
-	python taskmanager.py
+	python3 taskmanager.py

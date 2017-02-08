@@ -152,10 +152,11 @@ class Main(wx.Frame):
 
             for l in lns:
                 items = [ it.strip() for it in l.split(',') ]
-                if len(items)==2:
-                    self.tasks.append({"command":items[0],
-                                       "result": items[1],
-                                       "status": "unknown"})
+                if len(items)==3:
+                    self.tasks.append({"cwd"     :items[0], # the directory where the command should be ran from
+                                       "command" :items[1], # the command to be run
+                                       "result"  :items[2], # the expected result file (will be used to determine whether we are done)
+                                       "status"  :"unknown"})
                 
             self.update_status()
 
@@ -211,9 +212,9 @@ class Main(wx.Frame):
     
         panel = wx.Panel(self)
 
-        font = wx.SystemSettings_GetFont(wx.SYS_SYSTEM_FONT)
+        font = wx.SystemSettings.GetFont(wx.SYS_SYSTEM_FONT)
         font.SetPointSize(9)
-        boldfont = wx.SystemSettings_GetFont(wx.SYS_SYSTEM_FONT)
+        boldfont = wx.SystemSettings.GetFont(wx.SYS_SYSTEM_FONT)
         boldfont.SetPointSize(12)
 
         vbox = wx.BoxSizer(wx.VERTICAL)
@@ -331,7 +332,7 @@ class Main(wx.Frame):
                     except Empty:
                         keep_reading = False
                     else: # got line
-                        proc["log"].write(line)
+                        #proc["log"].write(line) # TODO update this
                         # See if we have some more output
                         proc["log"].flush()
 
@@ -379,9 +380,9 @@ class Main(wx.Frame):
             for task in self.tasks:
                 if task["status"]=="to do":
 
-                    cmd = task["command"].split(" ")
+                    cmd = ["tcsh",task["command"]] #.split(" ")
                     print("Launching '%s'"%task["command"])
-                    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1, close_fds=ON_POSIX)
+                    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1, close_fds=ON_POSIX, cwd=task["cwd"])
 
                     # Create a queue+thread for reading out the STDOUT/STDERR pipelines associated with this process
                     q = Queue()
@@ -433,7 +434,9 @@ class Main(wx.Frame):
 
     def startrun(self,e):
 
+        self.get_n_processes()
         if self.n_processes == None:
+            print ("No processes.")
             return
 
 
@@ -459,6 +462,8 @@ class Main(wx.Frame):
         self.processes = [] # None for _ in range(self.n_processes) ]
 
         self.timer.Start(TIMER_INTERVAL)
+
+        print ("Starting!")
 
 
 
