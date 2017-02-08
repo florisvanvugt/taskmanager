@@ -15,10 +15,8 @@ Where `wdX` is the working directory within which the task `X` should be execute
 
 
 ## TODO
-- Properly capture the log files
-- Optionally take a CSV as CLI argument.
-- Commands with multiple parts?
-- Something wrong with the logs I think
+- Allow easy selection between tcsh or other shells.
+
 
 
 

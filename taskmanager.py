@@ -40,6 +40,9 @@ TIMER_INTERVAL = 1000
 TIMEFORMAT = "%d %b %H:%M:%S"
 
 
+LOGDIR = ".logs"
+
+
 
 def enqueue_output(out, err, queue):
     """ 
@@ -82,8 +85,20 @@ class Main(wx.Frame):
         self.running = False
         self.processes = []
         self.processes_completed = []
+
+
+        if not os.path.exists(LOGDIR):
+            os.makedirs(LOGDIR)
         
 
+        # If people gave a filename on the command line, open it now
+        if len(sys.argv)>1:
+            fname = sys.argv[1]
+            print("Opening file %s"%fname)
+            self.readfile([fname])
+    
+
+        
 
 
 
@@ -135,6 +150,14 @@ class Main(wx.Frame):
             return
 
 
+        self.readfile(fnames)
+
+
+
+        
+    def readfile(self,fnames):
+        """ Read the task list from a file. """
+        
         self.filenamet.SetValue("\n".join(fnames))
 
         participant = None
@@ -160,6 +183,8 @@ class Main(wx.Frame):
                 
             self.update_status()
 
+        self.check_status(None)
+            
 
 
 
@@ -189,6 +214,8 @@ class Main(wx.Frame):
                 self.reportt.SetDefaultStyle(wx.TextAttr((200,200,0)))
 
             self.reportt.AppendText("[%s]"%task["status"])
+            if task["status"]=="failed":
+                self.reportt.AppendText("(exit = %i)"%task["returnval"])
             self.reportt.SetDefaultStyle(wx.TextAttr(wx.BLACK))
             if "started" in task.keys():                
                 self.reportt.AppendText(" started %s "%task["started"].strftime(TIMEFORMAT))
@@ -198,7 +225,7 @@ class Main(wx.Frame):
 
         # Now get the whole contents and save them to a log file.
         conts = self.reportt.GetValue()
-        f = open('log.txt','w')
+        f = open(LOGDIR+'/log.txt','w')
         f.write(conts)
         f.close()
 
@@ -332,7 +359,7 @@ class Main(wx.Frame):
                     except Empty:
                         keep_reading = False
                     else: # got line
-                        #proc["log"].write(line) # TODO update this
+                        proc["log"].write(str(line)) # TODO update this
                         # See if we have some more output
                         proc["log"].flush()
 
@@ -363,9 +390,10 @@ class Main(wx.Frame):
 
                 else:
                     # If the process is completed...
+                    proc["task"]["returnval"]=ret
                     if ret==0:
                         proc["task"]["status"]="completed"
-                    if ret==-1:
+                    else:
                         proc["task"]["status"]="failed"
 
                     proc["task"]["finished"]=datetime.datetime.now()
@@ -380,7 +408,11 @@ class Main(wx.Frame):
             for task in self.tasks:
                 if task["status"]=="to do":
 
-                    cmd = ["tcsh",task["command"]] #.split(" ")
+                    spltask = task["command"].split(" ")
+                    if len(spltask)>1:
+                        cmd = spltask
+                    else:
+                        cmd = ["tcsh",task["command"]] #.split(" ")
                     print("Launching '%s'"%task["command"])
                     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1, close_fds=ON_POSIX, cwd=task["cwd"])
 
@@ -393,7 +425,7 @@ class Main(wx.Frame):
 
                     fnamesafe = task["command"].replace(" ","")
                     fnamesafe = fnamesafe.replace("/","")
-                    f = open('log%s.txt'%fnamesafe,'w')
+                    f = open(LOGDIR+'/log%s.txt'%fnamesafe,'w')
                     f.write('Log for running "%s"\n'%fnamesafe)
                     task["started"]=datetime.datetime.now()
                     f.write('Started running: %s\n\n'%task["started"].strftime(TIMEFORMAT))
@@ -521,7 +553,7 @@ class Main(wx.Frame):
 
 
 if __name__ == '__main__':
-  
+
     app = wx.App()
     n = Main(None, title='Parallel Script Running Manager')
     n.__close_callback = lambda: True
