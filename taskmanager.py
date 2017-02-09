@@ -67,7 +67,7 @@ class Main(wx.Frame):
   
     def __init__(self, parent, title):
         super(Main, self).__init__(parent, title=title, 
-                                   size=(900, 700))
+                                   size=(900, 600))
 
         # This is the timer that keeps updating the processes (checking when processes have completed)
         self.timer = wx.Timer(self)
@@ -292,21 +292,6 @@ class Main(wx.Frame):
         hbox1.Add(self.reportt, proportion=1, flag=wx.EXPAND, border=8)
 
         vbox.Add(hbox1, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP|wx.BOTTOM, border=10)
-
-
-
-        vbox.Add((-1, 10))
-
-
-        hbox2 = wx.BoxSizer(wx.HORIZONTAL)
-        st1 = wx.StaticText(panel, label='Trial')
-        st1.SetFont(font)
-        self.triallbl = wx.StaticText(panel, label='N/A')
-        self.triallbl.SetFont(boldfont)
-        hbox2.Add(st1, flag=wx.RIGHT, border=8)
-        hbox2.Add(self.triallbl, flag=wx.RIGHT, border=8)
-        vbox.Add(hbox2, flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=10)
-
 
 
         vbox.Add((-1, 10))
