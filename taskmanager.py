@@ -24,17 +24,20 @@ import subprocess
 import time
 import datetime
 
-from threading  import Thread
+#from threading  import Thread
 import sys
 
-try:
-    from Queue import Queue, Empty
-except ImportError:
-    from queue import Queue, Empty  # python 3.x
+
+from aux import *
+
+#try:
+#    from Queue import Queue, Empty
+#except ImportError:
+#    from queue import Queue, Empty  # python 3.x
 
 ON_POSIX = 'posix' in sys.builtin_module_names
 
-TIMER_INTERVAL = 1000
+TIMER_INTERVAL = 1000 # msec
 
 TIMEFORMAT = "%d %b %H:%M:%S"
 
@@ -42,25 +45,15 @@ TIMEFORMAT = "%d %b %H:%M:%S"
 LOGDIR = ".logs"
 
 
-
-TRUNC_RES = 25
-TRUNC_CMD = 50
-
-
-def enqueue_output(out, err, queue):
-    """ 
-    For reading queued output; source
-    http://stackoverflow.com/questions/375427/non-blocking-read-on-a-subprocess-pipe-in-python
-    """
-    for stream in [out,err]:
-        for line in iter(stream.readline, b''):
-            queue.put(line)
-        stream.close()
+# In the interface, truncate long command names and long result file names
+TRUNC_RES = 25 # show the last # characters of the result file
+TRUNC_CMD = 60 # show the first # characters of the command
 
 
-
-
-
+""" 
+For reading queued output; source
+http://stackoverflow.com/questions/375427/non-blocking-read-on-a-subprocess-pipe-in-python
+"""
 
 
 
@@ -188,23 +181,10 @@ class Main(wx.Frame):
             self.reportt.AppendText(msg)
 
             ## Read the task list
-            self.tasks = []
-
-            f = open(fname,'r')
-            lns = f.readlines()
-            f.close()
-
-            for l in lns:
-                items = [ it.strip() for it in l.split(',') ]
-                if len(items)==3:
-                    self.tasks.append({"cwd"     :items[0], # the directory where the command should be ran from
-                                       "command" :items[1], # the command to be run
-                                       "result"  :items[2], # the expected result file (will be used to determine whether we are done)
-                                       "status"  :"unknown"})
-                else:
-                    msg = "Ignoring line '%s' in task file, not sure what to do with that."%(l.strip())
-                    self.log_entry(msg)
-                    self.reportt.AppendText(msg)
+            tasks,ignores = read_task_list(fname)
+            for ign in ignores:
+                self.log_entry(ign)
+            self.tasks = tasks
                 
             self.update_status()
 
