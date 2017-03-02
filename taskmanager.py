@@ -130,12 +130,8 @@ class Main(wx.Frame):
         ## and then show that in the GUI.
 
         self.log_entry("Checking task status")
-        for task in self.tasks:
-            if task["status"]=="unknown":
-                if os.path.exists(task["result"]):
-                    task["status"]="completed"
-                else:
-                    task["status"]="to do"
+        
+        check_indicator_files(self.tasks)
         
         # Now update what we've found in the GUI
         self.update_status()

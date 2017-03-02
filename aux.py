@@ -1,3 +1,4 @@
+import os
 
 
 def read_task_list(fname):
@@ -25,3 +26,22 @@ def read_task_list(fname):
                 ignores.append("Ignoring line '%s' in task file, not sure what to do with that."%(l.strip()))
 
     return tasks,ignores
+
+
+
+
+
+
+def check_indicator_files(tasks):
+    """ Given a set of tasks, check their indicator files.
+    If for a task the status is unknown, go looking for
+    the indicator file and put the status to "completed" 
+    if the indicator file is present."""
+
+    for task in tasks:
+        if task["status"]=="unknown":
+            if os.path.exists(task["result"]):
+                task["status"]="completed"
+            else:
+                task["status"]="to do"
+    return

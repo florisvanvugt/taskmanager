@@ -22,12 +22,23 @@ tasks,ignores = read_task_list(fname)
 print("... done reading.")
 
 
+
+
+print ("Checking status using indicator files...")
+check_indicator_files(tasks)
+print ("...done")
+
+
+
+
+
 s = ""
 s += "<html>\n<body>"
 s += "<table>\n"
 for task in tasks:
     s += "<tr>"
     s += "<td>%s</td>"%task["command"]
+    s += "<td>%s</td>"%task["status"]
     s += "</tr>\n"
 
 s += "</table>\n"
