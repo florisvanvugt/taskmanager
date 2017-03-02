@@ -142,8 +142,6 @@ class Processes:
 
         if n_active<self.n_processes: # If we have less active processes than the maximum, we can add some new
 
-            msg = intermediate_report(self.tasks)
-            self.log_entry(msg)
             self.log_entry("Currently %i processes active, which is less than the desired %i"%(n_active,self.n_processes))
 
             # Find if we have a task that needs to be assigned to a processes
@@ -198,12 +196,22 @@ class Processes:
                     newlaunched = True
                     break
 
+            if newlaunched:
+                # We have launched a new process, so it's time to update the status again!
+                msg = intermediate_report(self.tasks)
+                self.log_entry(msg)
+
+                
+
             if n_active==0 and not newlaunched:
 
                 self.log_entry("All processes completed.")
                 self.running = False
                 self.update_status()
 
+                
+
+                
         self.n_active=n_active
 
 
