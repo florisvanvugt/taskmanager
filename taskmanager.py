@@ -42,7 +42,7 @@ TIMER_INTERVAL = 1000 # msec
 TIMEFORMAT = "%d %b %H:%M:%S"
 
 
-LOGDIR = ".logs"
+LOGDIR = "logs"
 
 
 # In the interface, truncate long command names and long result file names

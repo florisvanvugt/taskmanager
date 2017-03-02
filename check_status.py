@@ -30,23 +30,12 @@ print ("...done")
 
 
 
-
-
-s = ""
-s += "<html>\n<body>"
-s += "<table>\n"
-for task in tasks:
-    s += "<tr>"
-    s += "<td>%s</td>"%task["command"]
-    s += "<td>%s</td>"%task["status"]
-    s += "</tr>\n"
-
-s += "</table>\n"
+html = tasks_to_html(tasks)
 
 
 print("Writing %s..."%htmlout)
 f = open(htmlout,'w')
-f.write(s)
+f.write(html)
 f.close()
 print("...done")
 
