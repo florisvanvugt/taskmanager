@@ -111,7 +111,7 @@ class Main(wx.Frame):
         if message[-1]!="\n": # if we aren't already ending in a newline, add one now
             message+="\n"
         self.logf.write("[%f] %s -- %s"%(t,t_fmt,message))
-        print(message)
+        print(message.strip())
         self.logf.flush()
             
 
@@ -321,10 +321,6 @@ class Main(wx.Frame):
         self.runb.Bind(wx.EVT_BUTTON,self.startrun)
         hbox2.Add(self.runb,border=8)
 
-        self.pokeb = wx.Button(panel, label='Poke', size=(70, 30))
-        self.pokeb.Bind(wx.EVT_BUTTON,self.poke)
-        hbox2.Add(self.pokeb,border=8)
-
         self.killb = wx.Button(panel, label='Kill', size=(70, 30))
         self.killb.Bind(wx.EVT_BUTTON,self.killall)
         hbox2.Add(self.killb,border=8)
@@ -380,7 +376,7 @@ class Main(wx.Frame):
         and then does so.
         """
         self.get_n_processes()
-        self.read_process_outputs(e)
+        ##self.read_process_outputs(e)
 
         n_active = 0  # how many processes are currently active
         for proc in self.processes:
@@ -402,8 +398,9 @@ class Main(wx.Frame):
                         proc["task"]["status"]="failed"
 
                     proc["task"]["finished"]=datetime.datetime.now()
-                    proc["log"].write('\nCompleted: %s\n'%(proc["task"]["finished"].strftime(TIMEFORMAT)))
-                    proc["log"].flush()
+                    proc["log"].write('\n## Completed: %s\n'%(proc["task"]["finished"].strftime(TIMEFORMAT)))
+                    #proc["log"].flush()
+                    proc["log"].close()
 
 
         if n_active<self.n_processes: # If we have less active processes than the maximum, we can 
@@ -420,34 +417,41 @@ class Main(wx.Frame):
                         cmd = spltask
                     else:
                         cmd = ["tcsh",task["command"]] #.split(" ")
-                    self.log_entry("Launching '%s' in directory '%s'"%(task["command"],task["cwd"]))
-                    
-                    p = subprocess.Popen(cmd,
-                                         stdout=subprocess.PIPE,
-                                         stderr=subprocess.PIPE,
-                                         bufsize=1,
-                                         close_fds=ON_POSIX,
-                                         cwd=task["cwd"])
 
-                    # Create a queue+thread for reading out the STDOUT/STDERR pipelines associated with this process
-                    q = Queue()
-                    t = Thread(target=enqueue_output, 
-                               args=(p.stdout, p.stderr, q))
-                    t.daemon = True # thread dies with the program
-                    t.start()
 
+                    # Create a log file that we will capture any output in.
                     fnamesafe = task["command"].replace(" ","")
                     fnamesafe = fnamesafe.replace("/","")
                     f = open(LOGDIR+'/log%s.txt'%fnamesafe,'w')
-                    f.write('Log for running "%s"\n'%fnamesafe)
+                    f.write('## Log for running "%s"\n'%str(task["command"]))
+                    f.write('## Actual subprocess.Popen() entry: "%s"\n'%(str(cmd)))
+                    f.write("## Working directory \"%s\"\n"%(task["cwd"]))
                     task["started"]=datetime.datetime.now()
-                    f.write('Started running: %s\n\n'%task["started"].strftime(TIMEFORMAT))
+                    f.write('## Started running: %s\n\n'%task["started"].strftime(TIMEFORMAT))
                     f.flush()
+                        
+                    p = subprocess.Popen(cmd,
+                                         stdout=f,
+                                         stderr=f,
+                                         #bufsize=1,
+                                         #close_fds=ON_POSIX,
+                                         cwd=task["cwd"]
+                    )
+
+                    self.log_entry("Launching '%s' in directory '%s' (PID %s)"%(task["command"],task["cwd"],str(p.pid)))
+                    # Create a queue+thread for reading out the STDOUT/STDERR pipelines associated with this process
+
+                    #q = Queue()
+                    #t = Thread(target=enqueue_output, 
+                    #           args=(p.stdout, p.stderr, q))
+                    #t.daemon = True # thread dies with the program
+                    #t.start()
+
 
                     self.processes.append({"task"    :task,
                                            "process" :p,  # The process variable
-                                           "queue"   :q,  # Queue is used for reading output from stderr and stdout
-                                           "thread"  :t,
+                                           #"queue"   :q,  # Queue is used for reading output from stderr and stdout
+                                           #"thread"  :t,
                                            "log"     :f})
                     task["status"]="running"
                     newlaunched = True
