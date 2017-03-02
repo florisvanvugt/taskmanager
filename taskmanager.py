@@ -90,15 +90,30 @@ class Main(wx.Frame):
             os.makedirs(LOGDIR)
         
 
+        timestmp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.logf = open("%s/log_%s.txt"%(LOGDIR,timestmp),'w')
+        self.log_entry("Started task manager")
+
         # If people gave a filename on the command line, open it now
         if len(sys.argv)>1:
             fname = sys.argv[1]
             print("Opening file %s"%fname)
             self.readfile([fname])
-    
+
 
         
 
+
+    def log_entry(self,message):
+        """ Add an entry to our log. """
+        t = time.time()
+        t_fmt = datetime.datetime.now().strftime("%a %d %b %Y %H:%M:%S")
+        if message[-1]!="\n": # if we aren't already ending in a newline, add one now
+            message+="\n"
+        self.logf.write("[%f] %s -- %s"%(t,t_fmt,message))
+        print(message)
+        self.logf.flush()
+            
 
 
 
@@ -135,7 +150,7 @@ class Main(wx.Frame):
     def openFile(self,e):
         #participant = "act01"
         #fname = "audiomotor/act01/act01_audiomotor.training_sonif-halfcirc-active-1.0_20160209-120218.trials.txt"
-        fnames = self.ask_path()
+        fname = self.ask_path()
 
         data_collection = {}
 
@@ -143,27 +158,28 @@ class Main(wx.Frame):
         # If there are multiple files, then there will be multiple entries.
         alltrials = {}
 
-        if fnames==None:
+        if fname==None:
             print("No files selected.")
             #sys.exit(-1)
             return
 
 
-        self.readfile(fnames)
+        self.readfile(fname)
 
 
 
         
     def readfile(self,fnames):
         """ Read the task list from a file. """
-        
+
         self.filenamet.SetValue("\n".join(fnames))
 
         participant = None
 
         for fname in fnames:
-            
-            self.reportt.AppendText("Reading task list %s\n"%fname)
+            msg = "Reading task list from file %s\n"%fname
+            self.log_entry(msg)
+            self.reportt.AppendText(msg)
 
             ## Read the task list
             self.tasks = []
@@ -179,6 +195,10 @@ class Main(wx.Frame):
                                        "command" :items[1], # the command to be run
                                        "result"  :items[2], # the expected result file (will be used to determine whether we are done)
                                        "status"  :"unknown"})
+                else:
+                    msg = "Ignoring line '%s' in task file, not sure what to do with that."%(l.strip())
+                    self.log_entry(msg)
+                    self.reportt.AppendText(msg)
                 
             self.update_status()
 
@@ -224,7 +244,7 @@ class Main(wx.Frame):
 
         # Now get the whole contents and save them to a log file.
         conts = self.reportt.GetValue()
-        f = open(LOGDIR+'/log.txt','w')
+        f = open(LOGDIR+'/status.txt','w')
         f.write(conts)
         f.close()
 
@@ -375,6 +395,7 @@ class Main(wx.Frame):
                 else:
                     # If the process is completed...
                     proc["task"]["returnval"]=ret
+                    self.log_entry("Completed task '%s'; return value %i"%(proc["task"]["command"],proc["task"]["returnval"]))
                     if ret==0:
                         proc["task"]["status"]="completed"
                     else:
@@ -387,6 +408,8 @@ class Main(wx.Frame):
 
         if n_active<self.n_processes: # If we have less active processes than the maximum, we can 
 
+            self.log_entry("Currently %i processes active, which is less than the desired %i"%(n_active,self.n_processes))
+            
             # Find if we have a task that needs to be assigned to a processes
             newlaunched = False
             for task in self.tasks:
@@ -397,8 +420,14 @@ class Main(wx.Frame):
                         cmd = spltask
                     else:
                         cmd = ["tcsh",task["command"]] #.split(" ")
-                    print("Launching '%s'"%task["command"])
-                    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1, close_fds=ON_POSIX, cwd=task["cwd"])
+                    self.log_entry("Launching '%s' in directory '%s'"%(task["command"],task["cwd"]))
+                    
+                    p = subprocess.Popen(cmd,
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE,
+                                         bufsize=1,
+                                         close_fds=ON_POSIX,
+                                         cwd=task["cwd"])
 
                     # Create a queue+thread for reading out the STDOUT/STDERR pipelines associated with this process
                     q = Queue()
@@ -426,7 +455,7 @@ class Main(wx.Frame):
 
             if n_active==0 and not newlaunched:
 
-                print("All processes completed.")
+                self.log_entry("All processes completed.")
                 self.running = False
                 self.timer.Stop()
                 self.update_status()
@@ -436,6 +465,8 @@ class Main(wx.Frame):
 
 
     def get_n_processes(self):
+        """ Tries to read how many processes are allowed to be active. """
+        nold = self.n_processes
         try:
             self.n_processes = int(self.parproc.GetValue().strip())
         except:
@@ -443,7 +474,10 @@ class Main(wx.Frame):
             print(msg)
             wx.MessageBox(msg,"Information",
                           wx.OK | wx.ICON_INFORMATION)
+        if self.n_processes!=nold:
+            self.log_entry("User updated # of parallel tasks to %i."%self.n_processes)
 
+            
 
 
 
@@ -479,6 +513,7 @@ class Main(wx.Frame):
 
         self.timer.Start(TIMER_INTERVAL)
 
+        self.log_entry("Starting task list of %i tasks."%(len(self.tasks)))
         print ("Starting!")
 
 
@@ -499,6 +534,7 @@ class Main(wx.Frame):
             return
 
         # Terminate all processes
+        self.log_entry("User requested killing all tasks.")
         for proc in self.processes:
             if proc!=None:
                 proc["process"].terminate()
