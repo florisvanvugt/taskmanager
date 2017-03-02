@@ -43,6 +43,10 @@ LOGDIR = ".logs"
 
 
 
+TRUNC_RES = 25
+TRUNC_CMD = 50
+
+
 def enqueue_output(out, err, queue):
     """ 
     For reading queued output; source
@@ -132,6 +136,7 @@ class Main(wx.Frame):
         ## What this function does is, for each of the tasks, check the status, 
         ## and then show that in the GUI.
 
+        self.log_entry("Checking task status")
         for task in self.tasks:
             if task["status"]=="unknown":
                 if os.path.exists(task["result"]):
@@ -141,6 +146,7 @@ class Main(wx.Frame):
         
         # Now update what we've found in the GUI
         self.update_status()
+        self.log_entry("... done checking task status.")
         
 
 
@@ -202,6 +208,8 @@ class Main(wx.Frame):
                 
             self.update_status()
 
+            self.log_entry("Completed reading log file.")
+            
         self.check_status(None)
             
 
@@ -218,7 +226,13 @@ class Main(wx.Frame):
             self.reportt.AppendText("--- NOT RUNNING ---\n\n")
 
         for task in self.tasks:
-            self.reportt.AppendText("'%s' -> '%s' "%(task["command"],task["result"]))
+            cmd,res = task["command"],task["result"]
+            if len(cmd)>TRUNC_CMD:
+                cmd = cmd[:TRUNC_CMD]+"..."
+            if len(res)>TRUNC_RES:
+                res = "..."+res[-TRUNC_RES:]
+            
+            self.reportt.AppendText("'%s' -> '%s' "%(cmd,res))
             if task["status"]=="unknown":
                 self.reportt.SetDefaultStyle(wx.TextAttr((100,100,100)))
             if task["status"]=="completed":
