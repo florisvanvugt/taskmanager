@@ -39,9 +39,13 @@ if not os.path.exists(LOGDIR):
     os.makedirs(LOGDIR)
 
 
-timestmp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+TSTAMP_FSAFE = "%Y%m%d_%H%M%S" # a timestamp format that is safe for appending to a file
+timestmp = datetime.datetime.now().strftime(TSTAMP_FSAFE)
 LOGFNAME = "%s/log_%s.txt"%(LOGDIR,timestmp)
 LOGF = open(LOGFNAME,'w')
+
+
+started = datetime.datetime.now().strftime(TIMEFORMAT)
 
 
 
@@ -59,7 +63,7 @@ def intermediate_report(tasks):
     statuses = {}
     for task in tasks:
         statuses[task["status"]]=statuses.get(task["status"],0)+1
-    summ = nowiswhat()+" -- Tasks : " + " / ".join([ "<span style=\"font-weight:bold\">%i</span> %s"%(statuses[st],st) for st in statuses.keys() ])
+    summ = "%s (started %s) --- Tasks : "%(nowiswhat(),started) + " / ".join([ "<span style=\"font-weight:bold\">%i</span> %s"%(statuses[st],st) for st in statuses.keys() ])
     summ += "; total %i"%(len(tasks))
    
     html = tasks_to_html(tasks,summ,LOGFNAME)
@@ -68,6 +72,7 @@ def intermediate_report(tasks):
     outp.write(html)
     outp.close()
 
+    summ = "%s (started %s) --- Tasks : "%(nowiswhat(),started) + " / ".join([ "%i %s"%(statuses[st],st) for st in statuses.keys() ])
     return summ
 
     
@@ -159,7 +164,8 @@ class Processes:
                     # Create a log file that we will capture any output in.
                     fnamesafe = task["command"].replace(" ","")
                     fnamesafe = fnamesafe.replace("/","")
-                    proclog = LOGDIR+'/log%s.txt'%fnamesafe
+                    tstmp = datetime.datetime.now().strftime(TSTAMP_FSAFE)
+                    proclog = LOGDIR+'/%s_%s.txt'%(tstmp,fnamesafe)
                     f = open(proclog,'w')
                     task["logfname"]=proclog
                     f.write('## Log for running "%s"\n'%str(task["command"]))
