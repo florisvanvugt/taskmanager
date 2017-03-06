@@ -70,9 +70,15 @@ def tasks_to_html_table(tasks):
     """
     s = ""
     s += "<table>\n"
+    status_seen = []
     for i,task in enumerate(tasks):
-        s += "<tr>"
-        s += "<td>%i.</td>"%(i+1)
+        s += "<tr><td>"
+
+        if task["status"] not in status_seen:
+            status_seen.append(task["status"])
+            s += "<a name=\"%s\"></a>"%(task["status"])
+        
+        s += "%i.</td>"%(i+1)
         s += "<td>%s</td>"%task["command"]
         stl = "color:%s"%status_colors.get(task["status"],"gray")
         details = ""

@@ -72,12 +72,30 @@ def intermediate_report(tasks):
         statuses[task["status"]]=statuses.get(task["status"],0)+1
     summ = "%s (started %s) --- Tasks : "%(nowiswhat(),started) + " / ".join([ "<span style=\"font-weight:bold\">%i</span> %s"%(statuses[st],st) for st in statuses.keys() ])
     summ += "; total %i"%(len(tasks))
-
+    
     html = ""
     html += "<html>\n<body>\n\n"
     html += "<table><tr><td>Current time</td><td>%s</td></tr>\n"%nowiswhat()
     html += "<tr><td>Started</td><td>%s</td></tr>\n"%(started.strftime(TIMEFORMAT))
-    html += "<tr><td>Running time</td><td>%.03f hours</td></tr>\n"%((time.time() - time.mktime(started.timetuple()))/3600.)
+
+    running_time = time.time() - time.mktime(started.timetuple())
+    html += "<tr><td>Running time</td><td>%.03f hours</td></tr>\n"%(running_time/3600.)
+
+    # If you can, make a prediction about how long it will take
+    n_completed = statuses.get('completed',0)
+    if n_completed:
+
+        # Approximately; because we run multiple tasks at the same time
+        timepertask = running_time/n_completed
+
+        if timepertask>0:
+
+            # Time left: time to do
+            timeleft = statuses.get("to do",0)*timepertask
+
+            html += "<tr><td>Estimated time left</td><td>%.03f hours (for remaining to-do tasks)</td></tr>\n"%(timeleft/3600.)
+        
+    
     html += "</table>\n"
 
     # Make an overview of how many tasks are completed, running, etc.
@@ -93,7 +111,7 @@ def intermediate_report(tasks):
         html += "<span style=\"display:block;background:%s;color:%s;width:%ipx;height:%ipx;float:left\"></span>\n"%(col,col,w,BAR_HEIGHT)
     html += "<span style=\"display:block;width:30px;height:%ipx;float:left\"></span>\n\n"%BAR_HEIGHT
         
-    html += " / ".join([ "<span style=\"color:%s\"><span style=\"font-weight:bold\">%i</span> %s</span>"%(status_colors.get(st,"gray"),statuses[st],st) for st in status_display ])
+    html += " / ".join([ "<a href=\"#%s\" style=\"text-decoration: none\"><span style=\"color:%s\"><span style=\"font-weight:bold\">%i</span> %s</span></a>"%(st,status_colors.get(st,"gray"),statuses[st],st) for st in status_display ])
     html += "</p>"
     
     # Now let's make a fancy bar plot-style representation
