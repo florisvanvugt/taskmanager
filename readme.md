@@ -1,6 +1,8 @@
 # Simple task manager
 
-This is quite a simple program designed to handle running exorbitant numbers of scripts, not all at the same time in parallel, but with a user-specified maximum number that should be running at any one time. You feed this program a task list file (see details below) of scripts, which it will execute in order, and when one finishes it will start the next, so that at any time there is a number N of processes running in parallel (and this number can be set by the user).
+This is quite a simple program designed to handle running exorbitant numbers of scripts, not all at the same time in parallel, but with a user-specified maximum number that should be running at any one time. You feed this program a task list file (see details below) of scripts, which it will execute in order, and when one finishes it will start the next, so that at any time there is a number N of processes running in parallel (and this number can be set by the user). 
+
+Furthermore, this program allows you to recover from crashes, by having the possibility to check whether a particular task has already previously been completed.
 
 
 ## Graphical
@@ -10,6 +12,9 @@ There is a graphical user interface version, which requires wxPython, which you 
 ```
 python taskmanager.py
 ```
+
+On Linux that runs fine, however, I had some trouble getting it to run with large numbers of tasks on Mac OS.
+
 
 ## Command-line
 

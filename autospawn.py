@@ -45,7 +45,9 @@ LOGFNAME = "%s/log_%s.txt"%(LOGDIR,timestmp)
 LOGF = open(LOGFNAME,'w')
 
 
-started = datetime.datetime.now().strftime(TIMEFORMAT)
+started = datetime.datetime.now()
+
+
 
 
 
@@ -57,6 +59,11 @@ def nowiswhat():
     
 
 
+# The total width (in pixels) of the bar where we show for each type of task, how many there are in total
+BAR_WIDTH  = 500
+BAR_HEIGHT = 25
+
+
 def intermediate_report(tasks):
     """ Make an intermediate report: where are we at now? """
 
@@ -65,8 +72,36 @@ def intermediate_report(tasks):
         statuses[task["status"]]=statuses.get(task["status"],0)+1
     summ = "%s (started %s) --- Tasks : "%(nowiswhat(),started) + " / ".join([ "<span style=\"font-weight:bold\">%i</span> %s"%(statuses[st],st) for st in statuses.keys() ])
     summ += "; total %i"%(len(tasks))
-   
-    html = tasks_to_html(tasks,summ,LOGFNAME)
+
+    html = ""
+    html += "<html>\n<body>\n\n"
+    html += "<table><tr><td>Current time</td><td>%s</td></tr>\n"%nowiswhat()
+    html += "<tr><td>Started</td><td>%s</td></tr>\n"%(started.strftime(TIMEFORMAT))
+    html += "<tr><td>Running time</td><td>%.03f hours</td></tr>\n"%((time.time() - time.mktime(started.timetuple()))/3600.)
+    html += "</table>\n"
+
+    # Make an overview of how many tasks are completed, running, etc.
+    statuses = {}
+    for task in tasks:
+        statuses[task["status"]]=statuses.get(task["status"],0)+1
+    status_display = [ s for s in status_order if s in list(statuses.keys()) ] # in order of display
+        
+    html += "<p>\n"
+    for st in status_display:
+        col = status_colors.get(st,"gray")
+        w = int((statuses[st]/float(len(tasks)))*BAR_WIDTH)
+        html += "<span style=\"display:block;background:%s;color:%s;width:%ipx;height:%ipx;float:left\"></span>\n"%(col,col,w,BAR_HEIGHT)
+    html += "<span style=\"display:block;width:30px;height:%ipx;float:left\"></span>\n\n"%BAR_HEIGHT
+        
+    html += " / ".join([ "<span style=\"color:%s\"><span style=\"font-weight:bold\">%i</span> %s</span>"%(status_colors.get(st,"gray"),statuses[st],st) for st in status_display ])
+    html += "</p>"
+    
+    # Now let's make a fancy bar plot-style representation
+    
+    html += '<p><a href="javascript:window.location.reload(true)">Reload</a></p>\n'
+    html += '<p><a href="%s">Taskmanager Log</a></p>\n\n'%LOGFNAME
+    html += tasks_to_html_table(tasks)
+    html += "</body></html>\n"
 
     outp = open(htmlout,'w')
     outp.write(html)
@@ -121,6 +156,9 @@ class Processes:
         """
 
         n_active = 0  # how many processes are currently known to be active
+        tasks_changed = False # whether something has changed (so that we should generate a new report)
+        newlaunched = False # whether we launched any new task
+        
         for proc in self.processes:
 
             if proc!=None and proc["task"]["status"]=="running":
@@ -144,13 +182,14 @@ class Processes:
                     #proc["log"].flush()
                     proc["log"].close()
 
+                    tasks_changed = True
+                    
 
         if n_active<self.n_processes: # If we have less active processes than the maximum, we can add some new
 
-            self.log_entry("Currently %i processes active, which is less than the desired %i"%(n_active,self.n_processes))
+            #self.log_entry("Currently %i processes active, which is less than the desired %i"%(n_active,self.n_processes))
 
             # Find if we have a task that needs to be assigned to a processes
-            newlaunched = False
             for task in self.tasks:
                 if task["status"]=="to do":
 
@@ -159,7 +198,6 @@ class Processes:
                         cmd = spltask
                     else:
                         cmd = ["tcsh",task["command"]] #.split(" ")
-
 
                     # Create a log file that we will capture any output in.
                     fnamesafe = task["command"].replace(" ","")
@@ -202,11 +240,6 @@ class Processes:
                     newlaunched = True
                     break
 
-            if newlaunched:
-                # We have launched a new process, so it's time to update the status again!
-                msg = intermediate_report(self.tasks)
-                self.log_entry(msg)
-
                 
 
             if n_active==0 and not newlaunched:
@@ -214,6 +247,13 @@ class Processes:
                 self.log_entry("All processes completed.")
                 self.running = False
                 self.update_status()
+
+
+                
+        if tasks_changed or newlaunched:
+            # We have launched a new process, so it's time to update the status again!
+            msg = intermediate_report(self.tasks)
+            self.log_entry(msg)
 
                 
 
@@ -240,15 +280,13 @@ class Processes:
 log_entry("Started text-based task manager")
 
 
-print("Reading %s..."%fname)
+log_entry("Reading %s..."%fname)
 tasks,ignores = read_task_list(fname)
-print("... done reading.")
 
 
 
-print ("Checking status using indicator files...")
+log_entry("Checking status using indicator files...")
 check_indicator_files(tasks)
-print ("...done")
 
 
 

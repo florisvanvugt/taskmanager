@@ -41,10 +41,55 @@ def check_indicator_files(tasks):
     for task in tasks:
         if task["status"]=="unknown":
             if os.path.exists(task["result"]):
-                task["status"]="completed"
+                task["status"]="previously completed"
             else:
                 task["status"]="to do"
     return
+
+
+
+
+# The colours we will display each of the task statuses in
+status_colors = {
+    "unknown"               : "gray",
+    "failed"                : "red",
+    "running"               : "blue",
+    "todo"                  : "gray",
+    "completed"             : "green",
+    "previously completed"  : "green"
+    }
+
+
+status_order = ["unknown","previously completed","completed","failed","running","to do"]
+
+
+
+def tasks_to_html_table(tasks):
+    """
+    Returns an HTML table containing all the tasks (completed, running and todo).
+    """
+    s = ""
+    s += "<table>\n"
+    for i,task in enumerate(tasks):
+        s += "<tr>"
+        s += "<td>%i.</td>"%(i+1)
+        s += "<td>%s</td>"%task["command"]
+        stl = "color:%s"%status_colors.get(task["status"],"gray")
+        details = ""
+        if task["status"]=="running":
+            if "started" in list(task.keys()):
+                details = " [started %s]"%task["started"]
+            
+        if task["status"]=="completed" or task["status"]=="previously completed":
+            if "finished" in list(task.keys()):
+                details = " [%s]"%task["finished"]
+        s += "<td style=\"%s\">%s %s</td>"%(stl,task["status"],details)
+        if "logfname" in list(task.keys()):
+            s += "<td><a href=\"%s\">log</a></td>"%task["logfname"]
+        s += "</tr>\n"
+
+    s += "</table>\n"
+    return s
 
 
 
@@ -57,29 +102,5 @@ def tasks_to_html(tasks,header="",logf=""):
     s += '<p><a href="javascript:window.location.reload(true)">Reload</a></p>\n'
     if logf!="":
         s += '<p><a href="%s">Log</a></p>\n'%logf
-    s += "<table>\n"
-    for i,task in enumerate(tasks):
-        s += "<tr>"
-        s += "<td>%i.</td>"%(i+1)
-        s += "<td>%s</td>"%task["command"]
-        stl = "color:gray"
-        details = ""
-        if task["status"]=="failed":
-            stl = "color:red"
-        if task["status"]=="running":
-            stl = "color:blue"
-            if "started" in list(task.keys()):
-                details = " [started %s]"%task["started"]
-            
-        if task["status"]=="completed":
-            stl = "color:green"
-            if "finished" in list(task.keys()):
-                details = " [%s]"%task["finished"]
-        s += "<td style=\"%s\">%s %s</td>"%(stl,task["status"],details)
-        if "logfname" in list(task.keys()):
-            s += "<td><a href=\"%s\">log</a></td>"%task["logfname"]
-        s += "</tr>\n"
-
-    s += "</table>\n"
-
+    s += tasks_to_html_table(tasks)
     return s
