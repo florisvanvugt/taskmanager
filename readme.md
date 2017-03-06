@@ -39,3 +39,8 @@ Where `wdX` is the working directory within which the task `X` should be execute
 
 
 
+
+## Wish list
+
+* Allow updating of number of desired processes in the `autospawn` interface.
+

@@ -64,7 +64,10 @@ BAR_WIDTH  = 500
 BAR_HEIGHT = 25
 
 
-def intermediate_report(tasks):
+
+
+
+def intermediate_report(tasks,nproc=None):
     """ Make an intermediate report: where are we at now? """
 
     statuses = {}
@@ -80,6 +83,8 @@ def intermediate_report(tasks):
 
     running_time = time.time() - time.mktime(started.timetuple())
     html += "<tr><td>Running time</td><td>%.03f hours</td></tr>\n"%(running_time/3600.)
+    if nproc!=None:
+        html += "<tr><td>N. parallel processes</td><td>%i</td></tr>\n"%(nproc)
 
     # If you can, make a prediction about how long it will take
     n_completed = statuses.get('completed',0)
@@ -89,10 +94,8 @@ def intermediate_report(tasks):
         timepertask = running_time/n_completed
 
         if timepertask>0:
-
             # Time left: time to do
             timeleft = statuses.get("to do",0)*timepertask
-
             html += "<tr><td>Estimated time left</td><td>%.03f hours (for remaining to-do tasks)</td></tr>\n"%(timeleft/3600.)
         
     
@@ -117,7 +120,7 @@ def intermediate_report(tasks):
     # Now let's make a fancy bar plot-style representation
     
     html += '<p><a href="javascript:window.location.reload(true)">Reload</a></p>\n'
-    html += '<p><a href="%s">Taskmanager Log</a></p>\n\n'%LOGFNAME
+    html += '<p><a href="%s">Taskmanager log</a></p>\n\n'%LOGFNAME
     html += tasks_to_html_table(tasks)
     html += "</body></html>\n"
 
@@ -164,7 +167,7 @@ class Processes:
 
 
     def update_status(self):
-        intermediate_report(self.tasks)
+        return intermediate_report(self.tasks,self.n_processes)
         
     
     def keep_active(self):
@@ -264,13 +267,12 @@ class Processes:
 
                 self.log_entry("All processes completed.")
                 self.running = False
-                self.update_status()
 
 
                 
         if tasks_changed or newlaunched:
             # We have launched a new process, so it's time to update the status again!
-            msg = intermediate_report(self.tasks)
+            msg = self.update_status()
             self.log_entry(msg)
 
                 
