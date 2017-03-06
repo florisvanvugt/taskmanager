@@ -192,14 +192,14 @@ class Processes:
                 else:
                     # If the process is completed...
                     proc["task"]["returnval"]=ret
-                    self.log_entry("Completed task '%s'; return value %i"%(proc["task"]["command"],proc["task"]["returnval"]))
+                    self.log_entry("Ended task '%s'; return value %i"%(proc["task"]["command"],proc["task"]["returnval"]))
                     if ret==0:
                         proc["task"]["status"]="completed"
                     else:
                         proc["task"]["status"]="failed"
 
                     proc["task"]["finished"]=datetime.datetime.now().strftime(TIMEFORMAT)
-                    proc["log"].write('\n## Completed: %s\n'%(proc["task"]["finished"]))
+                    proc["log"].write('\n## Ended: %s\n'%(proc["task"]["finished"]))
                     #proc["log"].flush()
                     proc["log"].close()
 
@@ -265,7 +265,7 @@ class Processes:
 
             if n_active==0 and not newlaunched:
 
-                self.log_entry("All processes completed.")
+                self.log_entry("All processes ended.")
                 self.running = False
 
 
