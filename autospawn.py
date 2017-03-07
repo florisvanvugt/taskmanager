@@ -224,7 +224,8 @@ class Processes:
                     fnamesafe = task["command"].replace(" ","")
                     fnamesafe = fnamesafe.replace("/","")
                     tstmp = datetime.datetime.now().strftime(TSTAMP_FSAFE)
-                    proclog = LOGDIR+'/%s_%s.txt'%(tstmp,fnamesafe)
+                    #proclog = LOGDIR+'/%s_%s.txt'%(tstmp,fnamesafe)
+                    proclog = LOGDIR+'/%s_%i.txt'%(tstmp,self.tasks.index(task)+1)
                     f = open(proclog,'w')
                     task["logfname"]=proclog
                     f.write('## Log for running "%s"\n'%str(task["command"]))
