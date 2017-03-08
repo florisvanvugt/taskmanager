@@ -55,8 +55,8 @@ status_colors = {
     "failed"                : "red",
     "running"               : "blue",
     "todo"                  : "gray",
-    "completed"             : "green",
-    "previously completed"  : "green"
+    "completed"             : "#008000",
+    "previously completed"  : "#007200"
     }
 
 
