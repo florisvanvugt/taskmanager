@@ -88,7 +88,9 @@ def tasks_to_html_table(tasks):
             
         if task["status"]=="completed" or task["status"]=="previously completed":
             if "finished" in list(task.keys()):
-                details = " [%s]"%task["finished"]
+                details += " [%s]"%task["finished"]
+            if "duration" in list(task.keys()):
+                details += " %.2f hours"%(task["duration"]/3600.)
         s += "<td style=\"%s\">%s %s</td>"%(stl,task["status"],details)
         if "logfname" in list(task.keys()):
             s += "<td><a href=\"%s\">log</a></td>"%task["logfname"]

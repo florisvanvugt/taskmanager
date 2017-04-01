@@ -98,7 +98,7 @@ def intermediate_report(tasks,nproc=None):
         if timepertask>0:
             # Time left: time to do
             timeleft = statuses.get("to do",0)*timepertask
-            html += "<tr><td>Estimated time left</td><td>%.03f hours (for remaining to-do tasks)</td></tr>\n"%(timeleft/3600.)
+            html += "<tr><td>Estimated time left</td><td>%.03f hours (lousy estimate for remaining to-do tasks only)</td></tr>\n"%(timeleft/3600.)
         
     
     html += "</table>\n"
@@ -192,7 +192,9 @@ class Processes:
                     n_active+=1
 
                 else:
+                    #
                     # If the process is completed...
+                    #
                     proc["task"]["returnval"]=ret
                     self.log_entry("Ended task '%s'; return value %i"%(proc["task"]["command"],proc["task"]["returnval"]))
                     if ret==0:
@@ -201,6 +203,7 @@ class Processes:
                         proc["task"]["status"]="failed"
 
                     proc["task"]["finished"]=datetime.datetime.now().strftime(TIMEFORMAT)
+                    proc["task"]["duration"]=time.time()-proc["task"]["starttime"]
                     proc["log"].write('\n## Ended: %s\n'%(proc["task"]["finished"]))
                     #proc["log"].flush()
                     proc["log"].close()
@@ -216,6 +219,9 @@ class Processes:
             for task in self.tasks:
                 if task["status"]=="to do":
 
+                    #
+                    # Start running this new task.
+                    #
                     spltask = shlex.split(task["command"])
                     if len(spltask)>1:
                         cmd = spltask
@@ -234,6 +240,7 @@ class Processes:
                     f.write('## Actual subprocess.Popen() entry: "%s"\n'%(str(cmd)))
                     f.write("## Working directory \"%s\"\n"%(task["cwd"]))
                     task["started"]=datetime.datetime.now().strftime(TIMEFORMAT)
+                    task["starttime"]=time.time()
                     f.write('## Started running: %s\n\n'%task["started"])
                     f.flush()
 
