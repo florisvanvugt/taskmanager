@@ -8,6 +8,8 @@ import sys
 
 import time
 
+import shlex
+
 if len(sys.argv)<4:
     print("Usage: python autospawn.py <tasklist> <n-processes> <htmloutput>")
     print("")
@@ -214,7 +216,7 @@ class Processes:
             for task in self.tasks:
                 if task["status"]=="to do":
 
-                    spltask = task["command"].split(" ")
+                    spltask = shlex.split(task["command"])
                     if len(spltask)>1:
                         cmd = spltask
                     else:

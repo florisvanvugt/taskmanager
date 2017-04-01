@@ -30,6 +30,8 @@ import sys
 
 from aux import *
 
+import shlex
+
 #try:
 #    from Queue import Queue, Empty
 #except ImportError:
@@ -402,7 +404,7 @@ class Main(wx.Frame):
             for task in self.tasks:
                 if task["status"]=="to do":
 
-                    spltask = task["command"].split(" ")
+                    spltask = shlex.split(task["command"])
                     if len(spltask)>1:
                         cmd = spltask
                     else:
