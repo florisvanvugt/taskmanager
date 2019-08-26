@@ -5,6 +5,7 @@ This is quite a simple program designed to handle running exorbitant numbers of 
 Furthermore, this program allows you to recover from crashes, by having the possibility to check whether a particular task has already previously been completed.
 
 
+![HTML status screenshot](screenshot.png)
 
 
 ## Command-line
